@@ -63,7 +63,7 @@ section { scroll-margin-top: 1rem; }
 .navigation-links .nav-contact:hover { background: var(--green-dark); color: var(--white); }
 .menu-toggle { display: none; }
 
-/* Intro and the original Green IT Cube photograph. */
+/* Intro and the original data center photograph. */
 .hero { padding-block: 3.25rem 3rem; }
 .hero-grid { display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: 4rem; }
 .hero-content { padding-block: 1.5rem; }
@@ -83,17 +83,14 @@ section { scroll-margin-top: 1rem; }
 .image-label { position: absolute; top: 2rem; left: 0; max-width: calc(100% - 2rem); padding: 1rem 1.4rem; color: var(--white); background: var(--green-deep); font-size: .875rem; line-height: 1.5; }
 .image-label strong { display: block; font-size: 1.1875rem; font-weight: 500; }
 .hero-image figcaption { position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: .6rem; padding: .9rem 1.25rem; color: var(--white); background: #24372fee; font-size: .8125rem; }
-.location-icon { width: .6rem; height: .75rem; border: 1.5px solid currentColor; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); margin-right: .2rem; }
-.location-icon::after { content: ""; display: block; width: 2px; height: 2px; border-radius: 50%; background: currentColor; margin: 2px auto; }
 
 .facts { padding: 2.5rem 0 1.5rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.facts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1.18fr; }
+.facts-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .facts-grid > div { padding-inline: 2.5rem 1rem; border-left: 1px solid var(--line); }
 .facts-grid > div:first-child { padding-left: 0; border-left: 0; }
 .facts dt { font-size: 2.7rem; font-weight: 500; line-height: 1.2; letter-spacing: -.04em; }
 .facts dt span { font-size: 1.35rem; letter-spacing: -.025em; }
 .facts dd { margin-top: .45rem; color: var(--muted); font-size: .875rem; }
-.facts .fact-location dt { padding-top: .55rem; font-size: 1.8rem; }
 .facts > p { margin-top: 2rem; color: var(--muted); font-size: .8125rem; }
 
 /* Services use a shared editorial grid rather than independent panels. */
@@ -215,7 +212,6 @@ section { scroll-margin-top: 1rem; }
   .service { padding-inline: 1.1rem; }
   .service h3 { font-size: 1.1rem; }
   .facts-grid > div { padding-left: 1.5rem; }
-  .facts .fact-location dt { font-size: 1.5rem; }
   .contact-person { padding-left: 2rem; }
 }
 
@@ -253,7 +249,6 @@ section { scroll-margin-top: 1rem; }
   .facts dt { font-size: 2.2rem; }
   .facts dt span { font-size: 1.1rem; }
   .facts dd { font-size: .8125rem; }
-  .facts .fact-location dt { font-size: 1.25rem; }
   .facts-grid > div { padding-inline: 1.1rem .75rem; }
   .section { padding-block: 4.5rem; }
   .section-heading { gap: 2.5rem; }
@@ -316,7 +311,6 @@ section { scroll-margin-top: 1rem; }
   .facts-grid > div:nth-child(odd) { border-left: 0; padding-left: 0; }
   .facts dt { font-size: 2.5rem; }
   .facts dt span { font-size: 1.25rem; }
-  .facts .fact-location dt { font-size: 1.55rem; padding-top: .7rem; }
   .facts dd { margin-top: .3rem; font-size: .8125rem; }
   .facts > p { margin-top: 1.5rem; }
   .section { padding-block: 3.75rem; }
@@ -369,7 +363,6 @@ section { scroll-margin-top: 1rem; }
   .service-grid { grid-template-columns: 1fr; }
   .service h3 { font-size: 1.25rem; }
   .service > p { font-size: 1rem; }
-  .facts .fact-location dt { font-size: 1.35rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
