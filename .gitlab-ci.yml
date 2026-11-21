@@ -1,0 +1,53 @@
+# Auto-Deploy der statischen Website auf balticbrain-dmz (10.53.28.55).
+#
+# Der Job "deploy" läuft ausschließlich bei Push auf den Default-Branch (main)
+# und spiegelt index.html, styles.css, script.js, .nojekyll und assets/ per
+# rsync nach /var/www/balticbrain auf dem Zielserver.
+#
+# Voraussetzungen:
+# - CI/CD-Variable BALTICBRAIN_DEPLOY_KEY im GitLab-Projekt (Settings →
+#   CI/CD → Variables): privater SSH-Key des Deploy-Users "deploy",
+#   base64-kodiert und einzeilig (maskierte Variablen dürfen keine
+#   Zeilenumbrüche enthalten), Flags: masked + protected.
+#   Siehe deploy/README.md.
+# - Der GitLab-Runner braucht Netzwerkzugriff auf 10.53.28.55 (SSH, Port 22).
+#   Liegt dieser Runner-Netzwerkzugriff nicht vor, bleibt der Job hängen bzw.
+#   scheitert – offen Punkt bei der IT (siehe deploy/README.md).
+# - Auf dem Server schränkt ein forced command den SSH-Key auf genau einen
+#   rsync-Aufruf nach /var/www/balticbrain/ ein (keine Shell, kein sonstiger
+#   Befehl möglich).
+#
+# Es wird bewusst KEIN geheimer Key in das Repository committet.
+
+workflow:
+  rules:
+    # Pipelines nur für den Default-Branch; für Merge Requests und
+    # Feature-Branches wird keine Pipeline erzeugt.
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+deploy:
+  stage: deploy
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  variables:
+    DEPLOY_HOST: "10.53.28.55"
+    DEPLOY_USER: "deploy"
+    DEPLOY_KEY_FILE: "/tmp/balticbrain_deploy_key"
+  before_script:
+    - apk add --no-cache --quiet rsync openssh-client
+  script:
+    # Guard: klare Fehlermeldung, wenn die Variable beim Runner nicht ankommt.
+    - if [ -z "$BALTICBRAIN_DEPLOY_KEY" ]; then echo "CI-Variable BALTICBRAIN_DEPLOY_KEY ist nicht gesetzt (Settings > CI/CD > Variables)" >&2; exit 1; fi
+    # Key aus der maskierten Variable in eine Datei schreiben.
+    # Erwartet wird base64-kodierter Inhalt (einzeilig, maskierbar); ist der
+    # Key stattdessen roh hinterlegt, wird er unverändert übernommen.
+    - if printf '%s' "$BALTICBRAIN_DEPLOY_KEY" | base64 -d 2>/dev/null | grep -q 'PRIVATE KEY'; then printf '%s' "$BALTICBRAIN_DEPLOY_KEY" | base64 -d > "$DEPLOY_KEY_FILE"; else printf '%s\n' "$BALTICBRAIN_DEPLOY_KEY" > "$DEPLOY_KEY_FILE"; fi
+    - chmod 600 "$DEPLOY_KEY_FILE"
+    # SSH-Host-Key des Zielservers pinning, damit rsync ohne interaktive
+    # Host-Key-Bestätigung läuft.
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    # Deploy-Transfer. Der Ziel-Pfad wird serverseitig durch den forced
+    # command auf /var/www/balticbrain/ festgelegt.
+    - rsync -az --delete -e "ssh -i $DEPLOY_KEY_FILE -o IdentitiesOnly=yes" index.html styles.css script.js .nojekyll assets "$DEPLOY_USER@$DEPLOY_HOST":/

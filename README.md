@@ -23,7 +23,7 @@ Alle lokalen Links sind relativ. Damit funktioniert die Seite sowohl unter einem
 Die folgende Konfiguration setzt GitLab **17.10 oder neuer**, aktiviertes GitLab Pages und einen verfügbaren CI/CD-Runner mit Unterstützung für Container-Images voraus. Auf einer eigenen GitLab-Instanz werden Pages und Runner gegebenenfalls durch die Administration bereitgestellt. Die Dateien aus diesem Repository (`./site` im übergeordneten Workspace) müssen im Wurzelverzeichnis des GitLab-Repositories liegen.
 
 1. In GitLab ein leeres Projekt anlegen oder das bestehende Repository importieren.
-2. Neben `index.html` eine Datei `.gitlab-ci.yml` mit folgendem Inhalt anlegen. Das Beispiel ist hier dokumentiert; eine CI-Datei ist noch nicht im Repository enthalten.
+2. Neben `index.html` eine Datei `.gitlab-ci.yml` mit folgendem Inhalt anlegen. Das Beispiel dient heute als Alternative: im Repository liegt bereits eine CI-Konfiguration, die automatisch auf den eigenen Webserver deployed (siehe unten).
 
 ```yaml
 deploy-pages:
@@ -54,9 +54,11 @@ Ist das Remote `gitlab` bereits eingerichtet, entfällt `git remote add`. Bei ei
 
 4. Unter **Build → Pipelines** den Job `deploy-pages` verfolgen. Nach erfolgreicher Veröffentlichung steht die tatsächliche Website-URL unter **Deploy → Pages**. Weitere Pushes in den Standardbranch aktualisieren die Seite automatisch.
 
-Bleibt der Job auf `pending`, unter **Settings → CI/CD → Runners** die verfügbaren Runner und gegebenenfalls erforderliche Runner-Tags prüfen. Die YAML-Konfiguration lässt sich im GitLab-Pipeline-Editor mit **CI Lint** validieren.
+Bleibt der Job auf `pending`, unter **Settings → CI/CD → Runners** die verfügbaren Runner und gegebenenfalls erforderliche Runner-Tags prüfen. Die YAML-Konfiguration lässt sich im GitLab-Pipeline-Editor mit **CI Lint** validieren. Weitere Details: [GitLab-Pages-Anleitung](https://docs.gitlab.com/user/project/pages/getting_started/pages_from_scratch/), [Pages-Voraussetzungen](https://docs.gitlab.com/user/project/pages/introduction/#gitlab-pages-requirements) und [Referenz zu `pages.publish`](https://docs.gitlab.com/ci/yaml/#pagespublish).
 
-Weitere Details: [GitLab-Pages-Anleitung](https://docs.gitlab.com/user/project/pages/getting_started/pages_from_scratch/), [Pages-Voraussetzungen](https://docs.gitlab.com/user/project/pages/introduction/#gitlab-pages-requirements) und [Referenz zu `pages.publish`](https://docs.gitlab.com/ci/yaml/#pagespublish).
+## Auto-Deploy auf balticbrain-dmz (brain.vahl.de)
+
+Das Repository enthält eine `.gitlab-ci.yml`, die bei jedem Push auf `main` die Seite per `rsync` über SSH auf die VM `balticbrain-dmz` (10.53.28.55) nach `/var/www/balticbrain` ausrollt; nginx serviert sie unter `http://brain.vahl.de`. Details, die nginx-Vhost-Konfiguration und die offenen Punkte (DNS, Firewall 80/443, Netzwerkzugriff des GitLab-Runners auf 10.53.28.55 – liegt bei der IT) stehen in [deploy/README.md](deploy/README.md). Der SSH-Private-Key des Deploy-Users wird nie committet, sondern nur als maskierte CI-Variable `BALTICBRAIN_DEPLOY_KEY` im GitLab-Projekt hinterlegt.
 
 ## Inhalte und Gestaltung
 
