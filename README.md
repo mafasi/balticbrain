@@ -58,7 +58,7 @@ Bleibt der Job auf `pending`, unter **Settings → CI/CD → Runners** die verf�
 
 ## Auto-Deploy auf balticbrain-dmz (brain.vahl.de)
 
-Das Repository enthält eine `.gitlab-ci.yml`, die bei jedem Push auf `main` die Seite per `rsync` über SSH auf die VM `balticbrain-dmz` (10.53.28.55) nach `/var/www/balticbrain` ausrollt; nginx serviert sie unter `http://brain.vahl.de`. Details, die nginx-Vhost-Konfiguration und die offenen Punkte (DNS, Firewall 80/443, Netzwerkzugriff des GitLab-Runners auf 10.53.28.55 – liegt bei der IT) stehen in [deploy/README.md](deploy/README.md). Der SSH-Private-Key des Deploy-Users wird nie committet, sondern nur als maskierte CI-Variable `BALTICBRAIN_DEPLOY_KEY` im GitLab-Projekt hinterlegt.
+Das Repository enthält eine `.gitlab-ci.yml`, die bei jedem Push auf `main` die Seite automatisch veröffentlicht: Ein GitLab-Runner läuft direkt auf der VM `balticbrain-dmz` (10.53.28.55), checkt das Repository lokal aus und synchronisiert die Dateien nach `/var/www/balticbrain`; nginx serviert sie unter `http://brain.vahl.de`. Der Deploy läuft vollständig lokal auf der VM – ohne SSH, ohne rsync über das Netz und ohne geheime CI-Variablen. Details, das Sicherheitsmodell (Push-Rechte = Code-Ausführung auf der VM, Runner exklusiv für dieses Projekt), die nginx-Vhost-Konfiguration und offene Punkte (DNS, Firewall 80/443, Schreibrechte für `gitlab-runner` – IT/doti) stehen in [deploy/README.md](deploy/README.md).
 
 ## Inhalte und Gestaltung
 
