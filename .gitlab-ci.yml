@@ -35,4 +35,4 @@ deploy:
     - test -d /var/www/balticbrain && test -w /var/www/balticbrain
     # Statische Seite 1:1 aus dem lokalen Checkout übernehmen; --delete räumt
     # gelöschte Dateien (unterhalb von assets/) von der Website mit ab.
-    - rsync -az --delete index.html styles.css script.js .nojekyll assets/ /var/www/balticbrain/
+    - rsync -az --delete index.html styles.css script.js .nojekyll assets /var/www/balticbrain/
