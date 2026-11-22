@@ -149,6 +149,19 @@ section { scroll-margin-top: 1rem; }
 .consulting .download-link { margin-top: .5rem; color: var(--white); }
 .consulting a:focus-visible { outline-color: var(--white); }
 
+.section.events { padding-bottom: 0; }
+.events-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+.event-card { display: flex; flex-direction: column; min-width: 0; padding: 1.75rem; border: 1px solid var(--line); border-top: 3px solid var(--green); }
+.event-status { color: var(--green-dark); font-size: .875rem; font-weight: 500; }
+.event-meta { margin-top: .6rem; color: var(--muted); font-size: .875rem; }
+.event-card h3 { margin-top: 1.5rem; font-size: 1.375rem; line-height: 1.3; overflow-wrap: break-word; }
+.event-description { margin-top: 1rem; color: var(--muted); }
+.event-card .event-link { align-self: flex-start; margin-top: auto; padding-top: 1.75rem; }
+.events-contact { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-top: 2rem; padding: 1.75rem 2rem; background: var(--pale); }
+.events-contact h3 { font-size: 1.25rem; }
+.events-contact p { margin-top: .5rem; color: var(--muted); }
+.events-contact .button { flex-shrink: 0; }
+
 .collaboration .section-heading { grid-template-columns: 1.5fr 1fr; gap: 4rem; }
 .collaboration h2 { max-width: 36rem; }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; margin: 3.5rem 0 0; }
@@ -279,6 +292,9 @@ section { scroll-margin-top: 1rem; }
   .consulting { padding-block: 4rem; }
   .consulting h2 { font-size: 2.35rem; }
   .consulting-services h3 { font-size: 1.125rem; }
+  .events-grid { gap: 1rem; }
+  .event-card { padding: 1.25rem; }
+  .event-card h3 { font-size: 1.25rem; }
   .collaboration .section-heading { grid-template-columns: 1.4fr 1fr; gap: 2rem; }
   .steps li { padding-right: 1.75rem; }
   .funding { gap: 2rem; padding-inline: 1.75rem; }
@@ -342,6 +358,11 @@ section { scroll-margin-top: 1rem; }
   .consulting h2 { font-size: 2.55rem; }
   .consulting-intro > p:not(.eyebrow) { max-width: 36rem; }
   .consulting-services article:first-child { padding-top: 1.5rem; border-top: 1px solid #ffffff35; }
+  .events-grid { grid-template-columns: 1fr; gap: 1.25rem; }
+  .event-card { padding: 1.5rem; }
+  .event-card h3 { margin-top: 1.25rem; }
+  .event-card .event-link { padding-top: 1.25rem; }
+  .events-contact { flex-direction: column; align-items: flex-start; gap: 1.25rem; padding: 1.5rem; }
   .steps { grid-template-columns: 1fr; margin-top: 2rem; }
   .steps li { padding: 0 0 2rem 1.75rem; border-top: 0; border-left: 1px solid var(--line); }
   .steps li:last-child { padding-bottom: 0; }
@@ -396,6 +417,6 @@ section { scroll-margin-top: 1rem; }
   .button { color: var(--green-deep); border-color: var(--green-deep); background: var(--white); }
   .faq-grid { padding-top: 2rem; }
   .faq-items details > .faq-answer { display: block !important; }
-  .service, .steps li, .contact-person, .platform-specs > div { break-inside: avoid; }
+  .service, .event-card, .events-contact, .steps li, .contact-person, .platform-specs > div { break-inside: avoid; }
   .footer-main { padding-bottom: 1rem; }
 }
