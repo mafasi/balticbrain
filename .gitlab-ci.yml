@@ -46,12 +46,14 @@ deploy:
 
 check:
   # Leichtgewichtige Qualitätsprüfung für Merge-Request-Pipelines.
-  # Läuft bewusst auf Shared-/Instanz-Runnern (kein Tag) und nicht auf der
-  # DMZ-VM: Der deploy-Runner ist protected und nimmt Jobs aus MR-Pipelines
-  # nicht an – genau das erzwingt das Merge-Gate in Kombination mit dem
-  # protected-Runner.
+  # Läuft bewusst auf den Shared-/Instanz-Runnern (Tag "asprunner",
+  # run_untagged=false dort) und nicht auf der DMZ-VM: Der deploy-Runner ist
+  # protected und nimmt Jobs aus MR-Pipelines nicht an – genau das erzwingt
+  # das Merge-Gate in Kombination mit dem protected-Runner.
   stage: test
   image: alpine:3.20
+  tags:
+    - asprunner
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
