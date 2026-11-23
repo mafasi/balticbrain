@@ -1,4 +1,4 @@
-# Deployment auf balticbrain-dmz · balticbrain.ai / brain.vahl.de
+# Deployment auf balticbrain-dmz · balticbrain.ai
 
 Diese Datei dokumentiert den automatischen Deploy der statischen Website über
 GitLab CI auf den Webserver. Sie richtet sich an Betrieb (doti) und
@@ -8,9 +8,11 @@ Projektowner.
 
 | Punkt | Wert |
 | --- | --- |
-| Zielserver (VM) | `balticbrain-dmz`, IP `10.53.28.55`, Ubuntu 26.04 |
-| Webserver | nginx, Document Root `/var/www/balticbrain`, lauscht auf Port 80 |
-| Öffentliche URL | `http://brain.vahl.de` |
+| Zielserver (VM) | `balticbrain-dmz`, öffentliche IP `153.96.43.35` (DMZ), Ubuntu 26.04 |
+| Webserver | nginx, Document Root `/var/www/balticbrain`, Ports 80 (Redirect) + 443 (TLS) |
+| Öffentliche URL | `https://balticbrain.ai` (primär), `www.balticbrain.ai` (MIT) |
+| Weiterleitungen | `balticbrain.com`, `balticbrain.cloud`, `balticbrain.org` (jeweils inkl. `www`) → 301 auf `https://balticbrain.ai` |
+| TLS | Let's Encrypt via acme.sh, **DNS-01 über die Porkbun-API**; ein Zertifikat für alle 8 Namen (4 Domänen + je Wildcard), Renewal automatisch per Cron |
 | GitLab-Runner | läuft **auf der VM selbst** (Projekt-Runner `vahl/balticbrain.ai`, Tag `balticbrain-dmz`, Shell-Executor, User `gitlab-runner`, locked/exklusiv) |
 | Deploy-Inhalt | `index.html`, `styles.css`, `script.js`, `.nojekyll`, `assets/` |
 | Deployment | GitLab CI, Job `deploy`, nur bei Push auf `main` |
@@ -32,7 +34,7 @@ Gelöschte Dateien (unterhalb von `assets/`) verschwinden auch von der Website.
 
 Der Transfer läuft vollständig lokal auf der VM. Es gibt **kein SSH, kein
 rsync über das Netz und keine geheimen CI-Variablen**. Der Runner benötigt
-netzseitig nur ausgehend HTTPS (443) zum GitLab-Server, um Jobs und Quellen zu
+netzseitig nur ausgehend HTTPS zum GitLab-Server, um Jobs und Quellen zu
 ziehen; eine eingehende Freigabe für die CI ist nicht nötig.
 
 ## Sicherheitsmodell
@@ -45,59 +47,63 @@ Code-Ausführung auf der VM.** Daraus folgt:
   Repository und keine Gruppe auf diesem Runner).
 - Schreibrechte im GitLab-Projekt klein halten; der Default-Branch ist
   geschützt.
-- Die Jobs laufen mit den begrenzten Rechten des Users `gitlab-runner`
+- Die Jobs laufen mit den beschränkten Rechten des Users `gitlab-runner`
   (Deploy-Ziel: nur `/var/www/balticbrain`).
 
-### Abgelöst: SSH-Deploy-Key und CI-Variable
+## TLS / Zertifikate (Stand 23.11.2026)
 
-Der ursprüngliche Entwurf deployte per SSH/rsync über das Netz mit einem
-Deploy-Key des Users `deploy`, dessen SSH-Key durch einen forced command auf
-genau einen rsync-Aufruf nach `/var/www/balticbrain/` eingeschränkt war, und
-mit dem privaten Key in der maskierten CI-Variable `BALTICBRAIN_DEPLOY_KEY`.
-Dieses Verfahren ist **abgelöst**: Der Runner läuft inzwischen auf der VM
-selbst, der SSH-Weg wird nicht mehr benötigt.
+- Ausgestellt wird per **acme.sh** (User `vmuser`, `/home/vmuser/.acme.sh`)
+  und **DNS-01-Challenge über die Porkbun-API** (Keys liegen unter
+  `~vmuser/.secrets/porkbun.env`, API-Key auf Scopes `read,dns` beschränkt).
+  Die Domänen müssen in Porkbun für API-Zugriff opted-in sein
+  (Account → „Opt In All Domains"). Dieser Weg braucht **keinen offenen
+  Port 80** – die Renewals funktionieren unabhängig von der Firewall.
+- **Ein Zertifikat** (ECDSA P-256) mit 8 SANs:
+  `balticbrain.ai`, `*.balticbrain.ai`, analog für `.com`, `.cloud`, `.org`.
+  Installiert nach `~/certs/balticbrain/{fullchain,key}.pem`,
+  reloading von nginx über `--reloadcmd "sudo systemctl reload nginx"`.
+- Erneuerung: acme.sh-Cron des Users `vmuser` (11× täglich geprüft, ARI-gesteuert).
 
-- Die CI-Variable `BALTICBRAIN_DEPLOY_KEY` muss **nicht** gesetzt werden.
-- Der forced-command-Eintrag des Deploy-Users auf dem Server kann entfernt
-  und der Key außer Betrieb genommen werden (doti).
-- Keine Secrets in der CI-Konfiguration, keine CI-Variablen mit
-  Schlüsselmaterial.
+## Server-Zugriff
 
-## Server-Einrichtung (doti, serverseitig)
-
-- GitLab Runner `gitlab-runner` 19.6.0, Shell-Executor, als **Projekt-Runner**
-  für `vahl/balticbrain.ai` registriert, Tag `balticbrain-dmz`, läuft als User
-  `gitlab-runner`.
-- **Schreibrechte des Users `gitlab-runner` auf `/var/www/balticbrain`**
-  setzt doti serverseitig (offen).
-- `rsync` muss auf der VM installiert sein (der Job prüft Existenz und
-  Beschreibbarkeit des Ziels und bricht sonst mit klarer Meldung ab).
-
-## Offene Punkte (IT / doti)
-
-1. **DNS:** `brain.vahl.de` muss auf `10.53.28.55` (bzw. die öffentliche
-   DMZ-Frontend-IP) zeigen. Liegt bei der IT.
-2. **Firewall:** Freigabe 80/443 zur VM in der DMZ. Liegt bei der IT.
-3. **Schreibrechte:** `gitlab-runner` beschreibbar auf `/var/www/balticbrain`
-   machen. Liegt bei doti serverseitig.
-4. **TLS:** Aktuell serviert nginx Port 80 ohne TLS. HTTPS/Redirect auf 443
-   mit Zertifikat für `brain.vahl.de` ist ein Folgeschritt, sobald DNS und
-   Firewall stehen.
+Die VM steht in der DMZ; SSH (Port 22222) ist nur über die Jumphost-Kette
+erreichbar: **Jumphost `neon`** → knock-Sequenz
+(`32994 14299 41588 25872`, Closing `31149 38304 15201 40058`) →
+`ssh -p 22222 vmuser@balticbrain-dmz`. Auf neon existiert dafür
+`~/bin/knock-ssh`. UFW: 22222 nur vom Jumphost, 80/443 offen.
 
 ## nginx-Konfiguration auf balticbrain-dmz
 
-Referenz der aktiven Vhost-Konfiguration (nginx, Port 80):
+Primär-Site (`/etc/nginx/sites-available/balticbrain`), Stand 23.11.2026:
 
 ```nginx
 server {
     listen 80 default_server;
-    server_name brain.vahl.de balticbrain-dmz _;
+    server_name balticbrain-dmz _;          # blanker Host/IP -> plain HTTP
+    root /var/www/balticbrain;
+    index index.html;
+    location / { try_files $uri $uri/ =404; }
+}
+
+server {
+    listen 80;
+    server_name balticbrain.ai www.balticbrain.ai;
+    return 301 https://balticbrain.ai$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    http2 on;
+    server_name balticbrain.ai www.balticbrain.ai;
+
+    ssl_certificate     /home/vmuser/certs/balticbrain/fullchain.pem;
+    ssl_certificate_key /home/vmuser/certs/balticbrain/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
     root /var/www/balticbrain;
     index index.html;
 
-    location / {
-        try_files $uri $uri/ =404;
-    }
+    location / { try_files $uri $uri/ =404; }
 
     gzip on;
     gzip_types text/css application/javascript image/svg+xml application/json;
@@ -108,3 +114,16 @@ server {
     }
 }
 ```
+
+Die Nebendomänen liegen je in `/etc/nginx/sites-available/redirect-balticbrain.{com,cloud,org}`
+(HTTP + HTTPS, jeweils 301 auf `https://balticbrain.ai$request_uri`,
+gleiches Zertifikat).
+
+## Offene Punkte
+
+1. **Firewall:** Freigabe 80/443 **vom Internet** zur VM liegt bei der IT-SC
+   (Server-FAQ #133568, Ticket #209567). Serverseitig ist alles fertig; nach
+   der Freigabe ist `https://balticbrain.ai` ohne weiteres Zutun live.
+2. **Legacy `brain.vahl.de`:** zeigt noch per CNAME auf GitHub Pages
+   (`mafasi.github.io`). Entscheiden, ob die Alt-Domain auf
+   `https://balticbrain.ai` umgezogen wird (DNS + `CNAME`-Datei im Repo).
