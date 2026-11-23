@@ -9,7 +9,7 @@ Projektowner.
 | Punkt | Wert |
 | --- | --- |
 | Zielserver (VM) | `balticbrain-dmz`, öffentliche IP `153.96.43.35` (DMZ), Ubuntu 26.04 |
-| Webserver | nginx, Document Root `/var/www/balticbrain`, Ports 80 (Redirect) + 443 (TLS) |
+| Webserver | nginx, Document Root `/var/www/balticbrain`, Ports 80 (Redirect) + 443 (TLS), Security-Header via Snippet, `server_tokens off` |
 | Öffentliche URL | `https://balticbrain.ai` (primär), `www.balticbrain.ai` (MIT) |
 | Weiterleitungen | `balticbrain.com`, `balticbrain.cloud`, `balticbrain.org` (jeweils inkl. `www`) → 301 auf `https://balticbrain.ai` |
 | TLS | Let's Encrypt via acme.sh, **DNS-01 über die Porkbun-API**; ein Zertifikat für alle 8 Namen (4 Domänen + je Wildcard), Renewal automatisch per Cron |
@@ -65,6 +65,35 @@ Code-Ausführung auf der VM.** Daraus folgt:
 - Die Jobs laufen mit den beschränkten Rechten des Users `gitlab-runner`
   (Deploy-Ziel: nur `/var/www/balticbrain`).
 
+## Server-Härtung (Stand 23.11.2026, aus dem Security-Audit)
+
+Umgesetzt nach dem Security-Audit vom 23.11.2026 (live verifiziert):
+- **Security-Header global** über das Snippet
+  `/etc/nginx/snippets/security-headers.conf`: `X-Content-Type-Options:
+  nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+  strict-origin-when-cross-origin`, strenge `Content-Security-Policy`
+  (`default-src 'none'`-Profil; die Seite nutzt keinerlei
+  Inline-Styles/-Scripts) und `Permissions-Policy` mit deaktivierten
+  APIs. Alle mit `always`, damit sie auch auf Fehlerseiten gesetzt sind.
+- **HSTS:** Hauptsite
+  `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`;
+  Redirect-Vhosts ohne `preload` (reine Weiterleitungen). Auf Port-80-Blöcken
+  bewusst kein HSTS. Die Einreichung von `balticbrain.ai` auf
+  hstspreload.org ist ein bewusster Folgeschritt (s. offene Punkte).
+- **Versionsverrat entfernt:** `server_tokens off;` in
+  `/etc/nginx/nginx.conf` → `Server: nginx` ohne Version/OS.
+- **nginx-Vererbung:** Location-Blöcke mit eigenem `add_header` (Assets-Cache)
+  erben Server-Header nicht — das Snippet wird dort erneut eingebunden.
+- **Kernel:** laufender Kernel `7.0.0-44-generic` ist der beste verfügbare
+  Repository-Stand (0 upgradable). Die angreifbaren Alt-Kernel 7.0.0-31/30
+  wurden am 23.11.2026 vollständig entfernt (Purge + `update-grub`); die
+  zugehörigen Wazuh-CVEs sind damit eliminiert. Künftige Kernel-Rolls
+  installiert `unattended-upgrades` automatisch (inkl. `-security`-Origin);
+  Reboot danach bewusst manuell (s. offene Punkte).
+- Rollback für alle Änderungen: Konfigurations-Backups in
+  `~/nginx-backup-20261123/` auf der VM, Proxmox-Snapshot
+  `pre-sec-hardening-20261123` (VM 1078, Node ceph-1).
+
 ## TLS / Zertifikate (Stand 23.11.2026)
 
 - Ausgestellt wird per **acme.sh** (User `vmuser`, `/home/vmuser/.acme.sh`)
@@ -89,6 +118,19 @@ erreichbar: **Jumphost `neon`** → knock-Sequenz
 
 ## nginx-Konfiguration auf balticbrain-dmz
 
+Global in `/etc/nginx/nginx.conf`: `server_tokens off;`.
+
+Security-Header-Snippet (`/etc/nginx/snippets/security-headers.conf`,
+einbindbar auf Server- und Location-Ebene):
+
+```nginx
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
+```
+
 Primär-Site (`/etc/nginx/sites-available/balticbrain`), Stand 23.11.2026:
 
 ```nginx
@@ -97,6 +139,7 @@ server {
     server_name balticbrain-dmz _;          # blanker Host/IP -> plain HTTP
     root /var/www/balticbrain;
     index index.html;
+    include snippets/security-headers.conf;   # kein HSTS auf Port 80
     location / { try_files $uri $uri/ =404; }
 }
 
@@ -118,6 +161,9 @@ server {
     root /var/www/balticbrain;
     index index.html;
 
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    include snippets/security-headers.conf;
+
     location / { try_files $uri $uri/ =404; }
 
     gzip on;
@@ -126,13 +172,34 @@ server {
     location ~* \.(css|js|svg|png|jpg|jpeg|webp|woff2?)$ {
         expires 7d;
         add_header Cache-Control "public";
+        # eigener add_header -> Server-Header erben nicht: erneut einbinden
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        include snippets/security-headers.conf;
     }
 }
 ```
 
-Die Nebendomänen liegen je in `/etc/nginx/sites-available/redirect-balticbrain.{com,cloud,org}`
-(HTTP + HTTPS, jeweils 301 auf `https://balticbrain.ai$request_uri`,
-gleiches Zertifikat).
+Redirect-Vhosts (`/etc/nginx/sites-available/redirect-balticbrain.{com,cloud,org}`,
+je Domäne analog; HSTS hier ohne `preload`):
+
+```nginx
+server {
+    listen 80;
+    server_name balticbrain.com www.balticbrain.com;
+    return 301 https://balticbrain.ai$request_uri;
+}
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name balticbrain.com www.balticbrain.com;
+    ssl_certificate     /home/vmuser/certs/balticbrain/fullchain.pem;
+    ssl_certificate_key /home/vmuser/certs/balticbrain/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    include snippets/security-headers.conf;
+    return 301 https://balticbrain.ai$request_uri;
+}
+```
 
 ## Offene Punkte
 
@@ -142,3 +209,12 @@ gleiches Zertifikat).
 2. **Legacy `brain.vahl.de`:** zeigt noch per CNAME auf GitHub Pages
    (`mafasi.github.io`). Entscheiden, ob die Alt-Domain auf
    `https://balticbrain.ai` umgezogen wird (DNS + `CNAME`-Datei im Repo).
+3. **HSTS-Preload:** `https://balticbrain.ai` sendet bereits den
+   `preload`-Header; die tatsächliche Aufnahme in die Preload-Liste
+   erfordert die bewusste Einreichung auf
+   [hstspreload.org](https://hstspreload.org) (dauerhafte HTTPS-Pflicht für
+   alle Subdomains der Domäne — vorher abwägen).
+4. **Kernel-Reboot nach Roll:** `unattended-upgrades` installiert neue
+   Kernel-Pakete automatisch; ein Auto-Reboot ist bewusst nicht konfiguriert.
+   Nach Auftauchen von `reboot-required` (per Wazuh/Icinga beobachten)
+   die VM zeitnah neu starten, damit gefixte Kernel aktiv werden.
