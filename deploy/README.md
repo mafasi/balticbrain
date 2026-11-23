@@ -53,6 +53,15 @@ Code-Ausführung auf der VM.** Daraus folgt:
   nur auf Konvention zu beruhen.
 - Schreibrechte im GitLab-Projekt klein halten; der Default-Branch ist
   geschützt (Push und Merge nur Maintainer).
+- **Merge-Gate „Pipelines must succeed"** (aktiviert am 23.11.2026): Ein MR
+  ist erst mergbar, wenn seine Pipeline grün ist. Dafür erzeugen
+  `workflow`-Regeln zusätzlich MR-Pipelines, die den leichten Job `check`
+  auf Shared-/Instanz-Runnern ausführen (Datei-Existenz und Integrität der
+  referenzierten Assets; kein Zugriff auf die DMZ-VM). Zusammenspiel:
+  Versucht ein MR, einen Job mit dem Tag `balticbrain-dmz` zu starten,
+  nimmt ihn der protected-Runner nicht an – der Job bleibt `pending`, die
+  Pipeline wird nie grün, der MR ist nicht mergbar. Deploy bleibt
+  ausschließlich Push-auf-`main`-Pipeline des protected-Runners vorbehalten.
 - Die Jobs laufen mit den beschränkten Rechten des Users `gitlab-runner`
   (Deploy-Ziel: nur `/var/www/balticbrain`).
 

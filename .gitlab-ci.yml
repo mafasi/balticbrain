@@ -6,21 +6,28 @@
 # checkt das Repository lokal aus und synchronisiert die Dateien ohne SSH und
 # ohne rsync über das Netz nach /var/www/balticbrain.
 #
-# Voraussetzungen (Einrichtung serverseitig durch doti):
-# - Projekt-Runner mit Tag "balticbrain-dmz" auf der VM registriert und
-#   exklusiv diesem Projekt zugewiesen (locked).
-# - Schreibrechte des Users gitlab-runner auf /var/www/balticbrain.
-# - rsync auf der VM installiert.
+# Pipelines:
+# - Push auf main          -> Branch-Pipeline mit Job "deploy" (Tag
+#                             balticbrain-dmz, runner ist protected/locked).
+# - Merge-Request-Push     -> MR-Pipeline mit dem leichten Job "check"
+#                             (läuft auf Shared-/Instanz-Runnern, ohne
+#                             Zugriff auf die DMZ-VM). Sie ist die Grundlage
+#                             für das Merge-Gate "Pipelines must succeed".
+# - Push auf Feature-Branch ohne offenen MR -> keine Pipeline.
 #
 # Kein SSH-Deploy-Key, kein forced command, keine geheimen CI-Variablen.
 # Sicherheitsmodell: Wer ins Repository pushen darf, bestimmt den Inhalt der
-# Jobs mit (Code-Ausführung auf der VM als gitlab-runner). Der Runner gehört
-# deshalb ausschließlich zu diesem Projekt. Details: deploy/README.md
+# Jobs mit (Code-Ausführung auf der VM). Der Runner gehört deshalb ausschließlich
+# zu diesem Projekt und ist zusätzlich "protected": Er nimmt nur Jobs aus
+# Pipelines geschützter Refs (main) an – ein Feature-Branch/MR kann den
+# deploy-Job nicht auf der VM ausführen. Details: deploy/README.md
 
 workflow:
   rules:
-    # Pipelines nur für den Default-Branch; für Merge Requests und
-    # Feature-Branches wird keine Pipeline erzeugt.
+    # Merge-Request-Pipeline (Job "check") für das Merge-Gate
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    # Deploy-Pipeline nur für den Default-Branch; Pushes ohne offenen MR
+    # auf andere Branches erzeugen keine Pipeline.
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
 deploy:
@@ -36,3 +43,29 @@ deploy:
     # Statische Seite 1:1 aus dem lokalen Checkout übernehmen; --delete räumt
     # gelöschte Dateien (unterhalb von assets/) von der Website mit ab.
     - rsync -az --delete index.html styles.css script.js .nojekyll assets /var/www/balticbrain/
+
+check:
+  # Leichtgewichtige Qualitätsprüfung für Merge-Request-Pipelines.
+  # Läuft bewusst auf Shared-/Instanz-Runnern (kein Tag) und nicht auf der
+  # DMZ-VM: Der deploy-Runner ist protected und nimmt Jobs aus MR-Pipelines
+  # nicht an – genau das erzwingt das Merge-Gate in Kombination mit dem
+  # protected-Runner.
+  stage: test
+  image: alpine:3.20
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    # 1) Deploy-Dateiliste muss vollständig sein, sonst deployt der Job ein
+    #    unvollständiges Set.
+    - test -f index.html -a -f styles.css -a -f script.js -a -f .nojekyll -a -d assets
+    # 2) Alle in index.html referenzierten lokalen Dateien müssen im Repo
+    #    liegen (nur relative Pfade; externe URL-Schemata und Anker ignoriert).
+    #    'exit 1' in der while-Schleife scheitert die ganze Pipeline-Zeile;
+    #    GitLab bricht den Job damit ab.
+    - |
+      grep -oE '(href|src)="[^"]+"' index.html \
+        | sed -E 's/^(href|src)="//; s/"$//' \
+        | grep -vE '^[a-z]+:' | grep -v '^#' | sort -u \
+      | while IFS= read -r ref; do
+          if [ ! -f "$ref" ]; then echo "FEHLT: $ref" >&2; exit 1; fi
+        done
