@@ -13,7 +13,7 @@ Projektowner.
 | Öffentliche URL | `https://balticbrain.ai` (primär), `www.balticbrain.ai` (MIT) |
 | Weiterleitungen | `balticbrain.com`, `balticbrain.cloud`, `balticbrain.org` (jeweils inkl. `www`) → 301 auf `https://balticbrain.ai` |
 | TLS | Let's Encrypt via acme.sh, **DNS-01 über die Porkbun-API**; ein Zertifikat für alle 8 Namen (4 Domänen + je Wildcard), Renewal automatisch per Cron |
-| GitLab-Runner | läuft **auf der VM selbst** (Projekt-Runner `vahl/balticbrain.ai`, Tag `balticbrain-dmz`, Shell-Executor, User `gitlab-runner`, locked/exklusiv) |
+| GitLab-Runner | läuft **auf der VM selbst** (Projekt-Runner `vahl/balticbrain.ai`, Tag `balticbrain-dmz`, Shell-Executor, User `gitlab-runner`, locked/exklusiv, **protected**) |
 | Deploy-Inhalt | `index.html`, `styles.css`, `script.js`, `.nojekyll`, `assets/` |
 | Deployment | GitLab CI, Job `deploy`, nur bei Push auf `main` |
 | Konfiguration im Repo | [`.gitlab-ci.yml`](../.gitlab-ci.yml) (Repo-Root) |
@@ -45,8 +45,14 @@ Code-Ausführung auf der VM.** Daraus folgt:
 
 - Der Runner gehört **exklusiv zu diesem Projekt** (locked, kein weiteres
   Repository und keine Gruppe auf diesem Runner).
+- Der Runner ist **protected** (`access_level: ref_protected`, gesetzt am
+  23.11.2026): Er nimmt nur Jobs aus Pipelines auf geschützten Refs an —
+  derzeit nur `main`. Ein Feature-Branch mit geänderter `.gitlab-ci.yml`
+  kann damit keine Befehle auf der VM ausführen; die `workflow`-Regel in
+  `.gitlab-ci.yml` wird so durch die Runner-Konfiguration erzwungen, statt
+  nur auf Konvention zu beruhen.
 - Schreibrechte im GitLab-Projekt klein halten; der Default-Branch ist
-  geschützt.
+  geschützt (Push und Merge nur Maintainer).
 - Die Jobs laufen mit den beschränkten Rechten des Users `gitlab-runner`
   (Deploy-Ziel: nur `/var/www/balticbrain`).
 
