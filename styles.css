@@ -218,6 +218,14 @@ section { scroll-margin-top: 1rem; }
 .footer-bottom a { text-decoration: none; }
 .footer-bottom a:hover { color: var(--green-dark); text-decoration: underline; }
 
+.legal-page h1 { font-size: clamp(2.5rem, 4vw, 3.5rem); font-weight: 600; letter-spacing: -.045em; }
+.legal-content { max-width: 57rem; margin-top: 2rem; overflow-wrap: anywhere; }
+.legal-content h2 { margin-top: 2.5rem; margin-bottom: 1rem; font-size: 1.375rem; letter-spacing: -.02em; line-height: 1.35; }
+.legal-content h3, .legal-content h4 { margin-top: 1.5rem; margin-bottom: .75rem; font-size: 1.125rem; }
+.legal-content p + p { margin-top: 1rem; }
+.legal-content a, .legal-source a { color: var(--green-dark); }
+.legal-source { margin-top: 2rem; font-size: .875rem; }
+
 @media (min-width: 100rem) {
   .hero { padding-block: 4rem; }
   .hero-image { height: 36.5rem; }

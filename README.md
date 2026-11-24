@@ -31,7 +31,7 @@ deploy-pages:
   stage: deploy
   script:
     - mkdir -p public
-    - cp index.html styles.css script.js public/
+    - cp index.html impressum.html styles.css script.js impressum.js public/
     - cp -R assets public/assets
   pages:
     publish: public
@@ -65,6 +65,7 @@ Das Repository enthält eine `.gitlab-ci.yml`, die bei jedem Push auf `main` die
 - `index.html`: Texte, Navigation, Hardwaredaten, Veranstaltungsrückblicke, FAQ, Kontakt und PDF-Links.
 - `styles.css`: Fraunhofer-Grün aus der Vorlage, Typografie, Layout, mobile Ansichten und Druckansicht.
 - `script.js`: mobiles Menü und Markierung des aktuellen Navigationsabschnitts. Inhalte, FAQs und Kontaktlinks funktionieren auch ohne JavaScript.
+- `impressum.html` / `impressum.js`: eigene Impressumsseite und dynamische Einbindung des Fraunhofer-Impressumsbausteins.
 - `assets/images/`: bereitgestelltes IGD-Logo als SVG, Rechenzentrumsfoto und Projekt-Favicon.
 - `assets/downloads/`: technische Spezifikation und Leistungsblätter für Compute und AI-Act-Beratung.
 
@@ -84,6 +85,16 @@ Redaktionelle Grundlagen für diese Ergänzungen: [Fraunhofers Grundsätze zur Z
 
 Die Gestaltung orientiert sich an der bereitgestellten IGD-Vorlage und der [Institutswebsite](https://www.igd.fraunhofer.de/). Frutiger wird verwendet, wenn die Schrift lokal installiert ist; andernfalls greift eine Systemschrift. Die lizenzierten TTF-Dateien werden nicht als Webfonts übernommen. Es werden keine externen Schrift-, Skript- oder Trackingdienste eingebunden.
 
-Logo, Foto und PDFs stammen aus den bereitgestellten Unterlagen. Die ursprünglichen Rechte gelten weiterhin; dieses Repository erteilt keine zusätzliche Asset-Lizenz. Impressum und Datenschutz verweisen auf die Institutswebsite und sind vor einer Veröffentlichung auf ihre Anwendbarkeit für die gewählte Domain zu prüfen.
+Logo, Foto und PDFs stammen aus den bereitgestellten Unterlagen. Die ursprünglichen Rechte gelten weiterhin; dieses Repository erteilt keine zusätzliche Asset-Lizenz. Datenschutz verweist auf die Institutswebsite.
+
+## Dynamischer Impressumsbaustein
+
+Der Footer verlinkt auf die lokale Seite `impressum.html`. Dort wird das [öffentliche IGD-Impressum aus dem DSI-Generator](https://dsi-generator.fraunhofer.de/impressum/impressum_view/de/16b7ad68-3e71-41d4-8a48-767daa7ad9b6/) bei jedem Öffnen dynamisch eingebunden. Die Dokument-URL wurde vom Nutzer bereitgestellt; sie ist in `impressum.html` am Element `#impressum-content` im Attribut `data-imprint-url` hinterlegt.
+
+Fraunhofer stellt den Baustein über den [DSI-Generator](https://dsi-generator.fraunhofer.de/) bereit. Laut [offizieller Einbindungsanleitung](https://dsi-generator.fraunhofer.de/help/) wird nach Smartcard-Anmeldung ein Impressum mit den zutreffenden Instituts- und Redaktionsangaben angelegt. Unter **Meine Inhalte → Web-Links** bzw. **JavaScript-Code generieren** erhält man die öffentliche Dokument-URL. Die öffentlich zugängliche Generator-Beispielkonfiguration gehört einem anderen Institut und wird hier nicht verwendet.
+
+Wird das Impressumsdokument im Generator ersetzt, die neue deutsche URL in `data-imprint-url` eintragen. Erwartet wird eine URL unter `https://dsi-generator.fraunhofer.de/impressum/impressum_view/de/` mit der vom Generator vergebenen Dokument-ID. Änderungen am bestehenden Generator-Dokument erscheinen beim nächsten Aufruf automatisch.
+
+Der Loader lädt den aktuellen Baustein beim Öffnen der Impressumsseite per `fetch` ohne Cookies und Referrer nach. Der Generator unterstützt dafür CORS; ein iframe ist nicht erforderlich. Die übrige Landingpage löst diesen Abruf nicht aus. Der Text wird im vorhandenen Seitendesign dargestellt, und eine Prüfung auf die Institutskennung IGD verhindert die versehentliche Einbindung eines anderen Instituts. Bei Ladefehlern, Zeitüberschreitung oder deaktiviertem JavaScript bleibt der Direktlink zur Institutswebsite verfügbar. Es wird kein statischer Impressumstext als Ersatz gepflegt.
 
 Die Veröffentlichung über GitHub Pages oder GitLab Pages erfolgt gesondert.
